@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html land="ru">
+<head> 
+  <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Мой Чат - Общайся с друзьями</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #e5ded8;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .chat-container {
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            max-height: 700px;
+            background: white;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        /* Заголовок */
+        .chat-header {
+            background: #075e54;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .chat-header h1 {
+            font-size: 20px;
+            flex: 1;
+        }
+        
+        .online-status {
+            font-size: 12px;
+            background: #25d366;
+            padding: 4px 8px;
+            border-radius: 20px;
+        }
+        
+        /* Область сообщений */
+        .messages-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: #e5ded8;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Пузырек сообщения */
+        .message {
+            max-width: 70%;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .message.sent {
+            align-self: flex-end;
+        }
+        
+        .message.received {
+            align-self: flex-start;
+        }
+        
+        .message-bubble {
+            padding: 10px 12px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            font-size: 14px;
+        }
+        
+        .sent .message-bubble {
+            background: #dcf8c5;
+            color: #000;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .received .message-bubble {
+            background: white;
+            color: #000;
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message-time {
+            font-size: 10px;
+            color: #666;
+            margin-top: 4px;
+            margin-left: 8px;
+        }
+        
+        .sent .message-time {
+            text-align: right;
+        }
+        
+        /* Поле ввода */
+        .input-area {
+            background: white;
+            padding: 10px 15px;
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .input-area input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+        }
+        
+        .input-area input:focus {
+            border-color: #075e54;
+        }
+        
+        .input-area button {
+            background: #075e54;
+            border: none;
+            color: white;
+            padding: 0 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .input-area button:hover {
+            background: #054a42;
+        }
+        
+        .input-area button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        /* Экран входа */
+        .login-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .login-box {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 350px;
+            text-align: center;
+        }
+        
+        .login-box h2 {
+            margin-bottom: 20px;
+            color: #075e54;
+        }
+        
+        .login-box input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+        }
+        
+        .login-box button {
+            width: 100%;
+            padding: 12px;
+            background: #075e54;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .user-count {
+            font-size: 12px;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 8px;
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>💬  Мой Чат</h1>
+            <div class="online-status" id="onlineStatus">Подключение...</div>
+        </div>
+        
+        <div class="messages-area" id="messagesArea">
+            <div style="text-align: center; color: #666; padding: 20px;">
+                👋  Добро пожаловать! Введите имя чтобы начать общение
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="messageInput" placeholder="Введите сообщение..." disabled>
+            <button id="sendButton" disabled>📤 Отправить</button>
+        </div>
+    </div>
+    
+    <div class="login-screen" id="loginScreen">
+        <div class="login-box">
+            <h2>💬  Вход в чат</h2>
+            <input type="text" id="usernameInput" placeholder="Введите ваше имя" maxlength="20">
+            <button id="loginButton">Войти в чат</button>
+            <p style="margin-top: 15px; font-size: 12px; color: #666;">
+                Введите имя и начните общаться с друзьями!
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // ========== НАСТРОЙКИ ==========
+        // Здесь будет ваш уникальный ID комнаты
+        // ВАЖНО: Замените "my-room-123" на что-то уникальное!
+        const ROOM_ID = "my-room-123";
+        
+        // Глобальные переменные
+        let username = "";
+        let ws = null;
+        let isConnected = false;
+        
+        // DOM элементы
+        const loginScreen = document.getElementById('loginScreen');
+        const usernameInput = document.getElementById('usernameInput');
+        const loginButton = document.getElementById('loginButton');
+        const messagesArea = document.getElementById('messagesArea');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const onlineStatus = document.getElementById('onlineStatus');
+        
+        // ========== ФУНКЦИИ ==========
+        
+        // Добавление сообщения в чат
+        function addMessage(text, sender, isOwn, time = null) {
+            if (!time) {
+                time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            }
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isOwn ? 'sent' : 'received'}`;
+            
+            const senderName = isOwn ? 'Вы' : sender;
+            const nameHtml = !isOwn ? `<div style="font-size: 11px; color: #666; margin-bottom: 2px;">${senderName}</div>` : '';
+            
+            messageDiv.innerHTML = `
+                ${nameHtml}
+<div class="message-bubble">${escapeHtml(text)}</div>
+                <div class="message-time">${time}</div>
+            `;
+            
+            messagesArea.appendChild(messageDiv);
+            messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+        
+        // Системное сообщение (о входе/выходе)
+        function addSystemMessage(text) {
+            const systemDiv = document.createElement('div');
+            systemDiv.style.cssText = 'text-align: center; font-size: 12px; color: #666; margin: 8px 0;';
+            systemDiv.textContent = text;
+            messagesArea.appendChild(systemDiv);
+            systemDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+        
+        // Защита от XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Подключение к WebSocket серверу
+        function connectWebSocket() {
+            // Используем публичный WebSocket сервер для тестирования
+            // ВНИМАНИЕ: Для реального использования вам нужен свой сервер
+            // Но этот публичный сервер работает для демонстрации!
+            const wsUrl = 'wss://ws.postman-echo.com/raw';
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                console.log('WebSocket подключен');
+                isConnected = true;
+                onlineStatus.textContent = '✅ Онлайн';
+                onlineStatus.style.background = '#25d366';
+                messageInput.disabled = false;
+                sendButton.disabled = false;
+                
+                addSystemMessage(`✨ ${username} присоединился к чату!`);
+                
+                // Отправляем сообщение о входе
+                const joinMessage = {
+                    type: 'join',
+                    username: username,
+                    room: ROOM_ID,
+                    time: new Date().toISOString()
+                };
+                ws.send(JSON.stringify(joinMessage));
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('Получено:', data);
+                    
+                    if (data.type === 'join') {
+                        if (data.username !== username) {
+                            addSystemMessage(`👤  ${data.username} присоединился к чату`);
+                        }
+                    } else if (data.type === 'leave') {
+                        addSystemMessage(`👋  ${data.username} покинул чат`);
+                    } else if (data.type === 'message') {
+                        const isOwn = data.username === username;
+                        addMessage(data.text, data.username, isOwn, data.time);
+                    }
+                } catch (e) {
+                    // Если это не JSON, возможно это echo сервер
+                    console.log('Raw message:', event.data);
+                }
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket ошибка:', error);
+                onlineStatus.textContent = '❌ Ошибка';
+                onlineStatus.style.background = '#dc3545';
+            };
+            
+            ws.onclose = function() {
+                console.log('WebSocket отключен');
+                isConnected = false;
+                onlineStatus.textContent = '🔴  Офлайн';
+                onlineStatus.style.background = '#dc3545';
+                messageInput.disabled = true;
+                sendButton.disabled = true;
+                
+                // Пытаемся переподключиться через 3 секунды
+                setTimeout(() => {
+                    if (!isConnected && username) {
+                        console.log('Попытка переподключения...');
+                        connectWebSocket();
+}
+                }, 3000);
+            };
+        }
+        
+        // Отправка сообщения
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !isConnected || !username) return;
+            
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            
+            // Добавляем сообщение локально
+            addMessage(text, username, true, timeStr);
+            
+            // Отправляем на сервер
+            const messageData = {
+                type: 'message',
+                username: username,
+                text: text,
+                room: ROOM_ID,
+                time: timeStr
+            };
+            
+            try {
+                ws.send(JSON.stringify(messageData));
+                messageInput.value = '';
+                messageInput.focus();
+            } catch (e) {
+                console.error('Ошибка отправки:', e);
+                addSystemMessage('❌ Не удалось отправить сообщение');
+            }
+        }
+        
+        // Вход в чат
+        function login() {
+            const name = usernameInput.value.trim();
+            if (!name) {
+                alert('Пожалуйста, введите ваше имя');
+                return;
+            }
+            
+            username = name;
+            loginScreen.style.display = 'none';
+            
+            // Очищаем область сообщений
+            messagesArea.innerHTML = '';
+            
+            // Подключаемся
+            connectWebSocket();
+        }
+        
+        // ========== НАСТРОЙКА ОБРАБОТЧИКОВ ==========
+        
+        loginButton.addEventListener('click', login);
+        
+        usernameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+        
+        sendButton.addEventListener('click', sendMessage);
+        
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        
+        // Сохраняем имя в localStorage если есть
+        const savedName = localStorage.getItem('chat_username');
+        if (savedName) {
+            usernameInput.value = savedName;
+        }
+        
+        // При закрытии страницы
+        window.addEventListener('beforeunload', () => {
+            if (ws && isConnected && username) {
+                const leaveMessage = {
+                    type: 'leave',
+                    username: username,
+                    room: ROOM_ID
+                };
+                try {
+                    ws.send(JSON.stringify(leaveMessage));
+                } catch(e) {}
+            }
+        });
+        
+        console.log('Чат готов! Введите имя чтобы начать');
+    </script>
+</body>
+</html>
