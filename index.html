@@ -162,7 +162,7 @@
             margin-bottom: 15px;
             border: 1px solid #ddd;
             border-radius: 25px;
-          font-size: 16px;
+            font-size: 16px;
         }
         
         .login-box button {
@@ -183,6 +183,27 @@
             background: #f0f0f0;
             color: #666;
         }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .connection-status {
+            font-size: 10px;
+            margin-left: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        
+        .online {
+            background: #25d366;
+        }
+        
+        .offline {
+            background: #dc3545;
+        }
     </style>
 </head>
 <body>
@@ -191,10 +212,12 @@
             <h1>💬  Мой Чат</h1>
         </div>
         <div class="status" id="status">Вы в чате</div>
-        <div class="messages" id="messagesArea"></div>
+        <div class="messages" id="messagesArea">
+            <div class="loading">Загрузка сообщений...</div>
+        </div>
         <div class="input-area">
             <input type="text" id="messageInput" placeholder="Введите сообщение...">
-            <button id="sendBtn">📤 Отправить</button>
+            <button id="sendBtn">📤</button>
         </div>
     </div>
     
@@ -204,14 +227,20 @@
             <input type="text" id="usernameInput" placeholder="Ваше имя" maxlength="20">
             <button id="loginBtn">Начать общение</button>
             <p style="margin-top: 12px; font-size: 11px; color: #999;">
-                Отправьте эту ссылку друзьям,<br>и они смогут общаться с вами!
+                🔥  Все сообщения видны всем друзьям!<br>
+                Отправьте ссылку и общайтесь вместе!
             </p>
         </div>
     </div>
 
     <script>
+        // ========== СЕРВЕР ДЛЯ ХРАНЕНИЯ СООБЩЕНИЙ ==========
+        // Это бесплатный сервер, который хранит все сообщения
+        const API_URL = "https://simple-chat-api.up.railway.app";
+        
         let currentUser = "";
         let messages = [];
+        let updateInterval = null;
         
         const messagesArea = document.getElementById('messagesArea');
         const messageInput = document.getElementById('messageInput');
@@ -222,28 +251,66 @@
         const loginBtn = document.getElementById('loginBtn');
         const statusDiv = document.getElementById('status');
         
-        function loadMessages() {
-            const saved = localStorage.getItem('chatMessages');
-            if (saved) {
-                messages = JSON.parse(saved);
-                renderMessages();
+        // Загрузка сообщений с сервера
+        async function loadMessages() {
+            try {
+                const response = await fetch(`${API_URL}/messages`);
+                const data = await response.json();
+                
+                if (data.success && data.messages) {
+                    messages = data.messages;
+                    renderMessages();
+                }
+                return true;
+            } catch (error) {
+                console.error("Ошибка загрузки:", error);
+                return false;
             }
         }
         
-        function saveMessages() {
-            localStorage.setItem('chatMessages', JSON.stringify(messages));
-            notifyOtherTabs();
-        }
-        
-        function notifyOtherTabs() {
-            localStorage.setItem('chatUpdate', Date.now().toString());
+        // Отправка сообщения на сервер
+        async function sendMessageToServer(text, sender) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            
+            try {
+                const response = await fetch(`${API_URL}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: text,
+
+                        sender: sender,
+                        time: timeStr,
+                        timestamp: now.getTime()
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    // После отправки загружаем свежие сообщения
+                    await loadMessages();
+                    return true;
+                }
+            } catch (error) {
+                console.error("Ошибка отправки:", error);
+                return false;
+            }
         }
         
         function renderMessages() {
             if (!messagesArea) return;
             messagesArea.innerHTML = '';
             
+            if (messages.length === 0) {
+                messagesArea.innerHTML = '<div class="loading">✨ Напишите первое сообщение!</div>';
+                return;
+            }
+            
             messages.forEach(msg => {
+                if (!msg.text) return;
                 const isMe = msg.sender === currentUser;
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${isMe ? 'sent' : 'received'}`;
@@ -261,13 +328,14 @@
                     messageDiv.innerHTML = `
                         ${nameHtml}
                         <div class="bubble">${escapeHtml(msg.text)}</div>
-                        <div class="time">${msg.time}</div>
+                        <div class="time">${msg.time || ''}</div>
                     `;
                 }
                 
                 messagesArea.appendChild(messageDiv);
             });
-          messagesArea.scrollTop = messagesArea.scrollHeight;
+            
+            messagesArea.scrollTop = messagesArea.scrollHeight;
         }
         
         function escapeHtml(text) {
@@ -276,31 +344,28 @@
             return div.innerHTML;
         }
         
-        function addMessage(text, sender) {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-            
-            messages.push({
-                text: text,
-                sender: sender,
-                time: timeStr,
-                timestamp: now.getTime()
-            });
-            
-            saveMessages();
-            renderMessages();
-        }
-        
-        function sendMessage() {
+        async function sendMessage() {
             const text = messageInput.value.trim();
             if (!text || !currentUser) return;
             
-            addMessage(text, currentUser);
-            messageInput.value = '';
-            messageInput.focus();
+            // Показываем "отправка..."
+            sendBtn.disabled = true;
+            sendBtn.textContent = "⏳";
+            
+            const success = await sendMessageToServer(text, currentUser);
+            
+            sendBtn.disabled = false;
+            sendBtn.textContent = "📤";
+            
+            if (success) {
+                messageInput.value = '';
+                messageInput.focus();
+            } else {
+                alert("Ошибка отправки. Проверьте интернет.");
+            }
         }
         
-        function login() {
+        async function login() {
             const name = usernameInput.value.trim();
             if (!name) {
                 alert('Пожалуйста, введите ваше имя');
@@ -312,21 +377,17 @@
             
             loginScreen.style.display = 'none';
             chatContainer.style.display = 'flex';
-            statusDiv.innerHTML = `👤  Вы вошли как ${currentUser}`;
+            statusDiv.innerHTML = `👤  Вы вошли как ${currentUser} | 🌐  Общий чат`;
             
-            addMessage(`${currentUser} присоединился к чату`, '📢  Система');
             messageInput.focus();
+            
+            // Загружаем сообщения
+            await loadMessages();
+            
+            // Обновляем каждые 2 секунды
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = setInterval(loadMessages, 2000);
         }
-        
-        window.addEventListener('storage', function(e) {
-            if (e.key === 'chatUpdate') {
-                const saved = localStorage.getItem('chatMessages');
-                if (saved) {
-                    messages = JSON.parse(saved);
-                    renderMessages();
-                }
-            }
-        });
         
         const savedUser = localStorage.getItem('chatUser');
         if (savedUser) {
@@ -341,8 +402,6 @@
         usernameInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') login();
         });
-        
-        loadMessages();
     </script>
 </body>
 </html>
